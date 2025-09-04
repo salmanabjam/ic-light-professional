@@ -101,7 +101,7 @@ class ICLightSetup:
         installation_steps = [
             {
                 "name": "PyTorch with CUDA",
-                "packages": ["torch==2.1.0", "torchvision==0.16.0", "--index-url", "https://download.pytorch.org/whl/cu121"],
+                "packages": ["torch>=2.0.0", "torchvision>=0.15.0", "--index-url", "https://download.pytorch.org/whl/cu121"],
                 "critical": True
             },
             {

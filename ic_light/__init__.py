@@ -11,8 +11,8 @@ __description__ = "Professional AI-powered image relighting tool"
 # Import main components with error handling
 try:
     from .app import ICLightApp
-    from .models.ic_light_model import ICLightModel
-    from .utils.image_processor import ImageProcessor
+    from .models import ICLightModel
+    from .utils import ImageProcessor
     
     __all__ = [
         "ICLightApp",
