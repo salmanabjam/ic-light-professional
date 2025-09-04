@@ -5,19 +5,12 @@
 ```python
 # ========== PASTE THIS IN GOOGLE COLAB ==========
 
-# Install compatible versions first
-!pip install huggingface_hub==0.16.4 --force-reinstall --quiet
-!pip install transformers==4.35.0 --force-reinstall --quiet  
-!pip install diffusers==0.26.3 --force-reinstall --quiet
-!pip install gradio>=4.0.0 --quiet
-!pip install safetensors accelerate --quiet
-
 # Clone repository
-!git clone https://github.com/BRAINixIDEX/IC_Light_Google_Colab.git
-%cd IC_Light_Google_Colab
+!git clone https://github.com/salmanabjam/ic-light-professional.git
+%cd ic-light-professional
 
-# Run the complete fixed version  
-!python ic_light_complete_fixed.py
+# Run the Colab compatible version  
+!python ic_light_colab_compatible.py
 
 # ========== END PASTE ==========
 ```
@@ -28,6 +21,12 @@
 !python launch.py
 ```
 
-**Note:** This is the complete corrected version with full BRIA RMBG 1.4 implementation and proper IC Light v2 architecture.
+## یا نسخه کامل:
 
-**توجه:** این نسخه کاملاً تصحیح شده با پیاده‌سازی کامل BRIA RMBG 1.4 و معماری درست IC Light v2 است.
+```python
+!python ic_light_complete_fixed.py
+```
+
+**Note:** The `ic_light_colab_compatible.py` version automatically fixes Google Colab dependency conflicts.
+
+**توجه:** نسخه `ic_light_colab_compatible.py` به صورت خودکار تداخلات وابستگی‌های Google Colab را برطرف می‌کند.
