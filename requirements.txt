@@ -1,14 +1,14 @@
-# IC Light v2 Professional - Complete Requirements
-diffusers==0.27.2
-transformers==4.36.2
+# IC Light v2 Professional - Modern Compatible Requirements (2025)
+diffusers>=0.27.2
+transformers>=4.36.2
 opencv-python
 safetensors
-pillow==10.2.0
+pillow>=10.2.0
 einops
 torch
 peft
-gradio==3.41.2
-protobuf==3.20
-huggingface_hub==0.16.4
+gradio>=4.0.0
+protobuf>=3.20.3
+huggingface_hub>=0.21.0
 numpy
 accelerate
