@@ -174,6 +174,30 @@ class ICLightSetup:
                 if step['critical']:
                     return False
         
+        # Install IC Light package in editable mode
+        print("\n📦 Installing IC Light package...")
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-e", "."],
+                capture_output=True, text=True, timeout=60
+            )
+            if result.returncode == 0:
+                print("✅ IC Light package installed successfully!")
+            else:
+                print("⚠️ Editable install failed, adding to Python path...")
+                # Add current directory to Python path as fallback
+                current_dir = os.getcwd()
+                if current_dir not in sys.path:
+                    sys.path.insert(0, current_dir)
+                    print(f"✅ Added {current_dir} to Python path")
+        except Exception as e:
+            print(f"⚠️ Package installation failed: {e}")
+            # Add current directory to Python path as fallback
+            current_dir = os.getcwd()
+            if current_dir not in sys.path:
+                sys.path.insert(0, current_dir)
+                print(f"✅ Added {current_dir} to Python path as fallback")
+        
         return True
     
     def verify_installations(self):

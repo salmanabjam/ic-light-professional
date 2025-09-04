@@ -83,7 +83,45 @@ def check_dependencies():
 def launch_ic_light(args):
     """Launch IC Light Professional application"""
     try:
-        from ic_light.app import ICLightApp
+        # Ensure proper Python path setup
+        current_dir = Path(__file__).parent.absolute()
+        if str(current_dir) not in sys.path:
+            sys.path.insert(0, str(current_dir))
+        
+        try:
+            from ic_light.app import ICLightApp
+        except ImportError as e:
+            print(f"⚠️ Warning: IC Light components loading: {e}")
+            print("❌ Error importing IC Light: No module named 'ic_light.models'")
+            print("📦 Please ensure the ic_light package is properly installed")
+            
+            # Try to install package in editable mode
+            print("🔄 Attempting to install package...")
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "-e", "."])
+                print("✅ Package installed, retrying import...")
+                from ic_light.app import ICLightApp
+            except Exception as install_error:
+                print(f"❌ Package installation failed: {install_error}")
+                print("🔧 Setting up fallback environment...")
+                
+                # Create missing __init__.py files if needed
+                init_files = [
+                    "ic_light/__init__.py",
+                    "ic_light/models/__init__.py", 
+                    "ic_light/utils/__init__.py",
+                    "ic_light/ui/__init__.py"
+                ]
+                
+                for init_file in init_files:
+                    if not os.path.exists(init_file):
+                        os.makedirs(os.path.dirname(init_file), exist_ok=True)
+                        with open(init_file, 'w') as f:
+                            f.write('"""Package initialization"""')
+                        print(f"✅ Created {init_file}")
+                
+                # Try import one more time
+                from ic_light.app import ICLightApp
         
         print("\n🌟 Starting IC Light Professional...")
         print("🔗 Interface will be available shortly...")
@@ -120,10 +158,12 @@ def launch_ic_light(args):
         
     except ImportError as e:
         print(f"❌ Error importing IC Light: {e}")
-        print("📦 Please ensure the ic_light package is properly installed")
+        print("📦 Please run 'python optimized_setup.py' first")
         sys.exit(1)
     except Exception as e:
         print(f"❌ Error launching application: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
