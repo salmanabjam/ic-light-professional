@@ -1,48 +1,14 @@
-# IC Light Professional - Requirements
-# Latest versions for optimal performance and compatibility
-
-# Core ML Framework
-torch>=2.1.0
-torchvision>=0.16.0
-torchaudio>=2.1.0
-
-# Diffusion Models
-diffusers>=0.27.2
-transformers>=4.35.0
-accelerate>=0.25.0
-safetensors>=0.4.0
-
-# UI Framework
-gradio>=4.0.0
-
-# Image Processing
-pillow>=10.0.0
-opencv-python>=4.8.0
-numpy>=1.24.0
-scipy>=1.11.0
-
-# Background Removal (BriaRMBG)
-# Note: Installed via transformers pipeline
-
-# Visualization & Analytics
-matplotlib>=3.7.0
-plotly>=5.17.0
-kaleido>=0.2.1
-
-# GPU Acceleration (Optional)
-# xformers>=0.0.22  # Uncomment for GPU acceleration
-
-# Utilities
-requests>=2.31.0
-tqdm>=4.66.0
-omegaconf>=2.3.0
-einops>=0.7.0
-
-# Development Dependencies (Optional)
-# pytest>=7.4.0
-# black>=23.9.0 
-# flake8>=6.1.0
-# mypy>=1.6.0
-
-# Google Colab Compatibility
-# google-colab  # Only needed in Colab environment
+# IC Light v2 Professional - Complete Requirements
+diffusers==0.27.2
+transformers==4.36.2
+opencv-python
+safetensors
+pillow==10.2.0
+einops
+torch
+peft
+gradio==3.41.2
+protobuf==3.20
+huggingface_hub
+numpy
+accelerate

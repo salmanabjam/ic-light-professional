@@ -1,216 +1,277 @@
-#!/usr/bin/env python3
-"""
-IC Light Professional - Google Colab Launcher
-Simple launcher script that handles all setup and launch automatically
+# IC Light v2 Professional - Google Colab Integration
+# نسخه کامل و حرفه‌ای IC Light v2 برای Google Colab
+# Professional Complete IC Light v2 for Google Colab
 
-Usage in Google Colab:
-    !python colab_launcher.py
-    !python colab_launcher.py --share
-    !python colab_launcher.py --share --debug
+"""
+🌟 IC Light v2 Professional - Google Colab Edition
+
+This is a comprehensive implementation of IC Light v2 with all professional features:
+✅ Text-Conditioned Relighting
+✅ Background-Conditioned Relighting  
+✅ Professional Background Removal (BRIA RMBG 1.4)
+✅ Advanced Subject Detection
+✅ Preset Prompt System
+✅ Multi-Model Support
+✅ Professional Quality Controls
+✅ Bilingual Interface (Persian/English)
+
+Features:
+- Complete IC Light v2 functionality
+- Professional background removal and subject detection
+- 20+ preset lighting prompts for quick selection
+- Advanced quality control parameters
+- Multi-sample generation
+- Professional schedulers and optimizations
+- Comprehensive examples gallery
+- Real-time preview and controls
+
+سیستم حرفه‌ای IC Light v2 با تمامی قابلیت‌های پیشرفته
 """
 
-import sys
 import os
+import sys
 import subprocess
+import importlib.util
 import argparse
-from pathlib import Path
 
-def setup_environment():
-    """Setup the environment and fix common issues"""
-    print("🚀 IC Light Professional - Colab Launcher")
-    print("=" * 50)
+def install_requirements():
+    """Install all required packages for IC Light v2 Professional"""
+    print("� Installing IC Light v2 Professional requirements...")
     
-    # Fix directory structure if needed
-    current_dir = os.getcwd()
-    print(f"📁 Current directory: {current_dir}")
+    requirements = [
+        "diffusers==0.27.2",
+        "transformers==4.36.2", 
+        "opencv-python",
+        "safetensors",
+        "pillow==10.2.0",
+        "einops",
+        "torch",
+        "peft", 
+        "gradio==3.41.2",
+        "protobuf==3.20",
+        "huggingface_hub",
+        "numpy",
+        "accelerate"
+    ]
     
-    # Check if we're in a nested directory and fix it
-    if "ic-light-professional" in current_dir:
-        # Find the root ic-light-professional directory
-        parts = current_dir.split(os.sep)
+    for req in requirements:
         try:
-            # Find the first occurrence of ic-light-professional
-            idx = parts.index("ic-light-professional")
-            # Construct path up to the first ic-light-professional
-            root_path = os.sep.join(parts[:idx+1])
-            
-            if os.path.exists(os.path.join(root_path, "optimized_setup.py")):
-                os.chdir(root_path)
-                print(f"🔧 Fixed nested directories, now in: {os.getcwd()}")
-            else:
-                print("⚠️ Could not find project files in expected location")
-        except ValueError:
-            print("⚠️ Could not parse directory structure")
-    
-    # Ensure Python path includes current directory
-    if os.getcwd() not in sys.path:
-        sys.path.insert(0, os.getcwd())
-        print("✅ Added current directory to Python path")
+            print(f"📦 Installing {req}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", req, "--quiet"])
+            print(f"✅ {req} installed successfully")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Error installing {req}: {e}")
+            # Try without version constraint
+            package_name = req.split("==")[0]
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", package_name, "--quiet"])
+                print(f"✅ {package_name} installed successfully (latest version)")
+            except:
+                print(f"❌ Failed to install {package_name}")
 
-def install_package():
-    """Install the IC Light package"""
-    print("\n📦 Installing IC Light package...")
+def check_gpu():
+    """Check GPU availability and setup"""
+    print("� Checking GPU availability...")
     
     try:
-        # Try editable install
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-e", "."],
-            capture_output=True, text=True, timeout=120
-        )
-        
-        if result.returncode == 0:
-            print("✅ Package installed successfully!")
+        import torch
+        if torch.cuda.is_available():
+            gpu_name = torch.cuda.get_device_name(0)
+            gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1e9
+            print(f"✅ GPU Available: {gpu_name}")
+            print(f"📊 GPU Memory: {gpu_memory:.1f} GB")
             return True
         else:
-            print(f"⚠️ Editable install failed: {result.stderr}")
-            # Try alternative method
-            print("🔄 Trying alternative installation...")
-            
-            # Create __init__.py files if missing
-            init_files = [
-                "ic_light/__init__.py",
-                "ic_light/models/__init__.py",
-                "ic_light/utils/__init__.py",
-                "ic_light/ui/__init__.py"
-            ]
-            
-            for init_file in init_files:
-                if os.path.exists(init_file):
-                    continue
-                    
-                os.makedirs(os.path.dirname(init_file), exist_ok=True)
-                with open(init_file, 'w') as f:
-                    if "models" in init_file:
-                        f.write('from .ic_light_model import ICLightModel\n__all__ = ["ICLightModel"]')
-                    elif "utils" in init_file:
-                        f.write('from .image_processor import ImageProcessor\n__all__ = ["ImageProcessor"]')
-                    elif "ui" in init_file:
-                        f.write('from .components import *')
-                    else:
-                        f.write('"""IC Light Package"""')
-                print(f"✅ Created/updated {init_file}")
-            
-            return True
-            
-    except Exception as e:
-        print(f"❌ Installation failed: {e}")
+            print("⚠️ No GPU available, using CPU (will be slower)")
+            return False
+    except ImportError:
+        print("❌ PyTorch not installed")
         return False
 
-def run_setup():
-    """Run the optimized setup script"""
-    print("\n🔧 Running optimized setup...")
+def setup_models():
+    """Download and setup IC Light models"""
+    print("📥 Setting up IC Light v2 Professional models...")
     
-    try:
-        result = subprocess.run(
-            [sys.executable, "optimized_setup.py", "--quick-restore"],
-            capture_output=False,  # Show output in real time
-            timeout=300
-        )
-        
-        if result.returncode == 0:
-            print("✅ Setup completed successfully!")
-            return True
+    # Create models directory
+    os.makedirs("./models", exist_ok=True)
+    
+    models_info = {
+        "iclight_sd15_fc.safetensors": "https://huggingface.co/lllyasviel/ic-light/resolve/main/iclight_sd15_fc.safetensors",
+        "iclight_sd15_fbc.safetensors": "https://huggingface.co/lllyasviel/ic-light/resolve/main/iclight_sd15_fbc.safetensors"
+    }
+    
+    for model_name, url in models_info.items():
+        model_path = f"./models/{model_name}"
+        if not os.path.exists(model_path):
+            print(f"📥 Downloading {model_name}...")
+            try:
+                import urllib.request
+                urllib.request.urlretrieve(url, model_path)
+                print(f"✅ {model_name} downloaded successfully")
+            except Exception as e:
+                print(f"❌ Error downloading {model_name}: {e}")
+                try:
+                    from torch.hub import download_url_to_file
+                    download_url_to_file(url, model_path)
+                    print(f"✅ {model_name} downloaded successfully (torch.hub)")
+                except Exception as e2:
+                    print(f"❌ Failed with torch.hub too: {e2}")
         else:
-            print("⚠️ Setup had some issues but continuing...")
-            return True  # Continue anyway
-            
-    except subprocess.TimeoutExpired:
-        print("⏰ Setup timed out, but continuing...")
-        return True
-    except Exception as e:
-        print(f"⚠️ Setup error: {e}, but continuing...")
-        return True
+            print(f"✅ {model_name} already exists")
 
-def launch_app(share=False, debug=False, port=7860):
-    """Launch the IC Light application"""
-    print("\n🚀 Launching IC Light Professional...")
+def create_sample_images():
+    """Create sample images directory"""
+    print("🖼️ Setting up sample images...")
     
-    # Prepare launch command
-    cmd = [sys.executable, "easy_launch.py"]
+    # Create images directories
+    dirs = ["./imgs", "./imgs/bgs", "./imgs/alter"]
+    for d in dirs:
+        os.makedirs(d, exist_ok=True)
     
-    if share:
-        cmd.append("--share")
-        print("🌐 Share link will be generated!")
-        
-    if debug:
-        cmd.append("--debug")
-        print("🐛 Debug mode enabled!")
-        
-    cmd.extend(["--port", str(port)])
+    print("✅ Sample directories created")
+
+def launch_interface_choice():
+    """Launch interface selection"""
+    print("\n🌟 IC Light v2 Professional - Choose Interface:")
+    print("1. Text-Conditioned Relighting (Recommended)")
+    print("2. Background-Conditioned Relighting") 
+    print("3. Both Interfaces (Advanced)")
     
-    try:
-        # Launch the application
-        subprocess.run(cmd, check=False)
-        
-    except KeyboardInterrupt:
-        print("\n👋 Application stopped by user")
-    except Exception as e:
-        print(f"❌ Launch error: {e}")
-        
-        # Try fallback launch
-        print("\n🔄 Attempting fallback launch...")
-        try:
-            # Direct Python execution
-            fallback_code = """
-import sys
-import os
-sys.path.insert(0, os.getcwd())
-
-from ic_light.app import ICLightApp
-
-app = ICLightApp()
-interface = app.create_interface()
-
-launch_kwargs = {
-    'server_name': '0.0.0.0',
-    'server_port': %d,
-    'share': %s,
-    'show_error': True
-}
-
-interface.launch(**launch_kwargs)
-""" % (port, str(share).lower())
-
-            with open("_temp_launch.py", "w") as f:
-                f.write(fallback_code)
-            
-            subprocess.run([sys.executable, "_temp_launch.py"], check=False)
-            
-        except Exception as e2:
-            print(f"❌ Fallback launch also failed: {e2}")
-            print("\n📖 Manual steps:")
-            print("1. Check if all files are present")
-            print("2. Try: python optimized_setup.py")
-            print("3. Try: python easy_launch.py --share")
+    choice = input("Enter your choice (1/2/3): ").strip()
+    
+    if choice == "1":
+        return "text"
+    elif choice == "2":
+        return "background" 
+    elif choice == "3":
+        return "both"
+    else:
+        print("Invalid choice, using Text-Conditioned (default)")
+        return "text"
 
 def main():
-    """Main launcher function"""
-    parser = argparse.ArgumentParser(description="IC Light Professional - Colab Launcher")
+    """Main setup and launch function"""
+    parser = argparse.ArgumentParser(description="IC Light v2 Professional - Google Colab")
     parser.add_argument("--share", action="store_true", help="Create public share link")
-    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--interface", choices=["text", "background", "both"], 
+                       default="text", help="Interface type to launch")
     parser.add_argument("--port", type=int, default=7860, help="Port number")
-    parser.add_argument("--skip-setup", action="store_true", help="Skip setup and go directly to launch")
+    parser.add_argument("--skip-setup", action="store_true", help="Skip installation and setup")
     
     args = parser.parse_args()
     
-    # Setup environment
-    setup_environment()
+    print("=" * 60)
+    print("🌟 IC Light v2 Professional - Google Colab Setup")
+    print("سیستم حرفه‌ای IC Light v2 برای Google Colab")
+    print("=" * 60)
     
     if not args.skip_setup:
-        # Install package
-        if not install_package():
-            print("❌ Package installation failed, but continuing...")
+        # Step 1: Install requirements
+        install_requirements()
         
-        # Run setup
-        if not run_setup():
-            print("❌ Setup failed, but attempting to launch anyway...")
+        # Step 2: Check GPU
+        has_gpu = check_gpu()
+        
+        # Step 3: Setup models
+        setup_models()
+        
+        # Step 4: Create sample directories
+        create_sample_images()
+    else:
+        print("⏭️ Skipping setup as requested")
     
-    # Launch application
-    launch_app(
-        share=args.share, 
-        debug=args.debug, 
-        port=args.port
-    )
+    # Step 5: Choose interface (if not specified)
+    if args.interface == "text" and not args.skip_setup:
+        interface_type = launch_interface_choice()
+    else:
+        interface_type = args.interface
+    
+    print(f"\n� Launching {interface_type} interface(s)...")
+    
+    # Import and launch based on choice
+    try:
+        if interface_type == "text":
+            print("📱 Launching Text-Conditioned Interface...")
+            from ic_light_v2_professional import create_professional_interface
+            interface = create_professional_interface()
+            interface.queue(max_size=10).launch(
+                server_name='0.0.0.0',
+                server_port=args.port,
+                share=args.share,
+                inbrowser=True,
+                show_error=True,
+                title="IC Light v2 Professional"
+            )
+            
+        elif interface_type == "background":
+            print("📱 Launching Background-Conditioned Interface...")
+            from ic_light_bg_professional import create_background_interface
+            interface = create_background_interface()
+            interface.queue(max_size=10).launch(
+                server_name='0.0.0.0',
+                server_port=args.port, 
+                share=args.share,
+                inbrowser=True,
+                show_error=True,
+                title="IC Light v2 - Background-Conditioned"
+            )
+            
+        elif interface_type == "both":
+            print("📱 Launching Both Interfaces...")
+            import threading
+            import time
+            
+            def launch_text():
+                from ic_light_v2_professional import create_professional_interface
+                interface = create_professional_interface()
+                interface.queue(max_size=5).launch(
+                    server_name='0.0.0.0',
+                    server_port=args.port,
+                    share=args.share,
+                    inbrowser=False,
+                    show_error=True,
+                    title="IC Light v2 Professional - Text"
+                )
+            
+            def launch_bg():
+                time.sleep(5)  # Delay to avoid port conflicts
+                from ic_light_bg_professional import create_background_interface
+                interface = create_background_interface()
+                interface.queue(max_size=5).launch(
+                    server_name='0.0.0.0',
+                    server_port=args.port + 1, 
+                    share=args.share,
+                    inbrowser=False,
+                    show_error=True,
+                    title="IC Light v2 Professional - Background"
+                )
+            
+            # Launch both in separate threads
+            text_thread = threading.Thread(target=launch_text)
+            bg_thread = threading.Thread(target=launch_bg)
+            
+            text_thread.start()
+            bg_thread.start()
+            
+            print(f"✅ Both interfaces launched successfully!")
+            print(f"🌐 Text-Conditioned: Port {args.port}")
+            print(f"🌐 Background-Conditioned: Port {args.port + 1}")
+            
+            # Keep main thread alive
+            text_thread.join()
+            bg_thread.join()
+        
+    except ImportError as e:
+        print(f"❌ Import Error: {e}")
+        print("Please ensure all files are present:")
+        print("- ic_light_v2_professional.py")
+        print("- ic_light_bg_professional.py") 
+        print("- briarmbg.py")
+        print("- db_examples.py")
+    
+    except Exception as e:
+        print(f"❌ Launch Error: {e}")
+        print("Please check the error and try again.")
 
 if __name__ == "__main__":
     main()
