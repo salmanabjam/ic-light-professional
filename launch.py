@@ -6,7 +6,7 @@ print("🚀 Launching IC Light v2 Complete System...")
 print("🌟 راه‌اندازی سیستم کامل IC Light v2...")
 
 try:
-    subprocess.run([sys.executable, "ic_light_fixed.py"], check=True)
+    subprocess.run([sys.executable, "ic_light_complete_fixed.py"], check=True)
 except Exception as e:
     print(f"Error: {e}")
-    print("Please run: python ic_light_fixed.py")
+    print("Please run: python ic_light_complete_fixed.py")
