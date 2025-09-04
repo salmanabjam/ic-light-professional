@@ -26,6 +26,8 @@ def parse_arguments():
                        help='Optimize for Google Colab environment')
     parser.add_argument('--always-high-vram', action='store_true',
                        help='Use high VRAM mode (like Fooocus)')
+    parser.add_argument('--debug', action='store_true',
+                       help='Enable debug mode with detailed error messages')
     parser.add_argument('--port', type=int, default=7860,
                        help='Port to run the server on')
     parser.add_argument('--host', type=str, default='0.0.0.0',
@@ -145,6 +147,11 @@ def launch_ic_light(args):
             launch_kwargs['debug'] = True
             launch_kwargs['enable_queue'] = True
             print("🔧 Google Colab mode enabled!")
+        
+        # Debug mode
+        if args.debug:
+            launch_kwargs['debug'] = True
+            print("🐛 Debug mode enabled!")
         
         if args.share:
             print("🌐 Public share link will be generated!")

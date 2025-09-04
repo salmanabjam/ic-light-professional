@@ -24,11 +24,23 @@ def setup_environment():
     current_dir = os.getcwd()
     print(f"📁 Current directory: {current_dir}")
     
-    # Check if we're in a nested directory
-    if current_dir.endswith("ic-light-professional/ic-light-professional"):
-        parent_dir = os.path.dirname(current_dir)
-        os.chdir(parent_dir)
-        print(f"🔧 Fixed directory structure, now in: {os.getcwd()}")
+    # Check if we're in a nested directory and fix it
+    if "ic-light-professional" in current_dir:
+        # Find the root ic-light-professional directory
+        parts = current_dir.split(os.sep)
+        try:
+            # Find the first occurrence of ic-light-professional
+            idx = parts.index("ic-light-professional")
+            # Construct path up to the first ic-light-professional
+            root_path = os.sep.join(parts[:idx+1])
+            
+            if os.path.exists(os.path.join(root_path, "optimized_setup.py")):
+                os.chdir(root_path)
+                print(f"🔧 Fixed nested directories, now in: {os.getcwd()}")
+            else:
+                print("⚠️ Could not find project files in expected location")
+        except ValueError:
+            print("⚠️ Could not parse directory structure")
     
     # Ensure Python path includes current directory
     if os.getcwd() not in sys.path:
