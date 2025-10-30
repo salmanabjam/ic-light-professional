@@ -178,9 +178,10 @@ method addLine(TrendlineManager this, line lineObj) =>
 // @function Clears all lines from the manager
 // @param this TrendlineManager instance
 method clearAll(TrendlineManager this) =>
-    for i = 0 to array.size(this.lines) - 1
-        line.delete(array.get(this.lines, i))
-    array.clear(this.lines)
+    if array.size(this.lines) > 0
+        for i = 0 to array.size(this.lines) - 1
+            line.delete(array.get(this.lines, i))
+        array.clear(this.lines)
 
 // =============================================================================
 // MODULE 7: Trendline Drawing Functions
