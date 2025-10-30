@@ -413,8 +413,6 @@ f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices,
         array<float> lineQualityScores = array.new<float>()
         array<int> lineI = array.new<int>()
         array<int> lineJ = array.new<int>()
-        array<array<int>> lineTouchBars = array.new<array<int>>()
-        array<array<float>> lineTouchPrices = array.new<array<float>>()
         
         // Calculate average volume for quality scoring
         avgVolume = ta.sma(volume, 20)
@@ -446,8 +444,6 @@ f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices,
                         array.push(lineQualityScores, qualityScore)
                         array.push(lineI, i)
                         array.push(lineJ, j)
-                        array.push(lineTouchBars, touchBars)
-                        array.push(lineTouchPrices, touchPrices)
         
         // Sort by quality score (not just strength)
         int strengthCount = array.size(lineStrengths)
@@ -477,14 +473,6 @@ f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices,
                     tempJ = array.get(lineJ, i)
                     array.set(lineJ, i, array.get(lineJ, maxIdx))
                     array.set(lineJ, maxIdx, tempJ)
-                    
-                    tempTouchBars = array.get(lineTouchBars, i)
-                    array.set(lineTouchBars, i, array.get(lineTouchBars, maxIdx))
-                    array.set(lineTouchBars, maxIdx, tempTouchBars)
-                    
-                    tempTouchPrices = array.get(lineTouchPrices, i)
-                    array.set(lineTouchPrices, i, array.get(lineTouchPrices, maxIdx))
-                    array.set(lineTouchPrices, maxIdx, tempTouchPrices)
                 
                 // Draw the line with all enhancements
                 idx_i = array.get(lineI, i)
@@ -498,8 +486,10 @@ f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices,
                 lineAge = bar_index - x1
                 touchPoints = int(array.get(lineStrengths, i))
                 qualityScore = array.get(lineQualityScores, i)
-                touchBars = array.get(lineTouchBars, i)
-                touchPrices = array.get(lineTouchPrices, i)
+                
+                // Recalculate touch bars and prices for this line
+                [_, touchBars, touchPrices] = f_calculateTrendlineStrength(x1, y1, x2, y2, 
+                     pivotBars, pivotPrices, tolerance)
                 
                 trendline = f_drawTrendline(x1, y1, x2, y2, lineColor, isHTF, lineWidth, 
                      lineAge, touchPoints, qualityScore, touchBars, touchPrices)
