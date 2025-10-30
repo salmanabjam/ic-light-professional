@@ -247,14 +247,13 @@ f_calculateTrendlineStrength(int x1, float y1, int x2, float y2,
 // @param isResistance Whether finding resistance (true) or support (false)
 // @param manager TrendlineManager to add lines to
 // @param lineColor Color for the lines
+// @param tolerance Price tolerance for trendline detection
 f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices, 
-     bool isResistance, TrendlineManager manager, color lineColor) =>
+     bool isResistance, TrendlineManager manager, color lineColor, float tolerance) =>
     
     int pivotCount = array.size(pivotBars)
     
     if pivotCount >= 2
-        // Calculate tolerance based on ATR
-        tolerance = ta.atr(14) * 0.5
         
         array<float> lineStrengths = array.new<float>()
         array<int> lineI = array.new<int>()
@@ -334,6 +333,9 @@ f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices,
 var TrendlineManager resistanceManager = f_createTrendlineManager(maxLinesPerType)
 var TrendlineManager supportManager = f_createTrendlineManager(maxLinesPerType)
 
+// Calculate tolerance on every bar for consistency
+float atrTolerance = ta.atr(14) * 0.5
+
 // Main execution on last bar
 if barstate.islast
     // Clear previous lines
@@ -343,12 +345,12 @@ if barstate.islast
     // Draw resistance lines
     if showResistance
         f_findBestTrendlines(pivotHighBars, pivotHighPrices, true, 
-             resistanceManager, resistanceColor)
+             resistanceManager, resistanceColor, atrTolerance)
     
     // Draw support lines
     if showSupport
         f_findBestTrendlines(pivotLowBars, pivotLowPrices, false, 
-             supportManager, supportColor)
+             supportManager, supportColor, atrTolerance)
 
 // =============================================================================
 // MODULE 10: Visual Enhancements
