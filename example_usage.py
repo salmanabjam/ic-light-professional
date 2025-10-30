@@ -84,6 +84,11 @@ def main():
     print()
     
     for agent_name, report in results.items():
+        # Validate report object has required attributes
+        if not hasattr(report, 'role') or not hasattr(report, 'priority'):
+            print(f"  {agent_name}: Invalid report format")
+            continue
+            
         print(f"  {agent_name} ({report.role}):")
         
         # Show priority
@@ -93,16 +98,17 @@ def main():
             'medium': '🟡',
             'low': '🟢'
         }
-        print(f"    Priority: {priority_emoji.get(report.priority, '⚪')} {report.priority.upper()}")
+        priority = report.priority if report.priority else 'unknown'
+        print(f"    Priority: {priority_emoji.get(priority, '⚪')} {priority.upper()}")
         
         # Show key findings (first 3)
-        if report.findings:
+        if hasattr(report, 'findings') and report.findings:
             print(f"    Top Findings:")
             for finding in report.findings[:3]:
                 print(f"      • {finding}")
         
         # Show key recommendations (first 2)
-        if report.recommendations:
+        if hasattr(report, 'recommendations') and report.recommendations:
             print(f"    Key Recommendations:")
             for rec in report.recommendations[:2]:
                 print(f"      → {rec}")

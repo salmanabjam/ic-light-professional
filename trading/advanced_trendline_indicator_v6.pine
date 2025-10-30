@@ -1,0 +1,392 @@
+//@version=6
+// =============================================================================
+// Advanced Modular Trendline Indicator - Pine Script v6
+// Automatic Dynamic & Static Trendline Detection and Drawing
+// Fully Modular Architecture for Easy Extension
+// =============================================================================
+
+indicator("Advanced Trendline Indicator v6", overlay=true, max_lines_count=500)
+
+// =============================================================================
+// MODULE 1: Configuration & Settings
+// =============================================================================
+
+// Group: Pivot Detection Settings
+pivotLeftBars = input.int(10, "Pivot Left Bars", minval=1, group="Pivot Detection")
+pivotRightBars = input.int(10, "Pivot Right Bars", minval=1, group="Pivot Detection")
+maxStoredPivots = input.int(20, "Max Stored Pivots", minval=2, maxval=50, group="Pivot Detection")
+
+// Group: Trendline Settings
+showResistance = input.bool(true, "Show Resistance Lines", group="Trendline Display")
+showSupport = input.bool(true, "Show Support Lines", group="Trendline Display")
+showDynamic = input.bool(true, "Show Dynamic Lines", group="Trendline Display")
+showStatic = input.bool(true, "Show Static Lines", group="Trendline Display")
+
+// Group: Visual Settings
+resistanceColor = input.color(color.new(color.red, 0), "Resistance Color", group="Visual Settings")
+supportColor = input.color(color.new(color.green, 0), "Support Color", group="Visual Settings")
+dynamicLineStyle = input.string("Dashed", "Dynamic Line Style", options=["Solid", "Dashed", "Dotted"], group="Visual Settings")
+staticLineWidth = input.int(2, "Static Line Width", minval=1, maxval=5, group="Visual Settings")
+dynamicLineWidth = input.int(1, "Dynamic Line Width", minval=1, maxval=5, group="Visual Settings")
+
+// Group: Advanced Settings
+minTrendlineStrength = input.int(3, "Min Trendline Strength", minval=2, maxval=10, group="Advanced Settings", 
+     tooltip="Minimum number of pivot points to form a valid trendline")
+trendlineExtension = input.string("Right", "Extend Lines", options=["None", "Right", "Left", "Both"], group="Advanced Settings")
+maxLinesPerType = input.int(10, "Max Lines Per Type", minval=1, maxval=50, group="Advanced Settings")
+
+// =============================================================================
+// MODULE 2: Utility Functions
+// =============================================================================
+
+// @function Converts string to line style constant
+// @param styleStr Style name as string
+// @returns line.style constant
+f_getLineStyle(string styleStr) =>
+    switch styleStr
+        "Solid" => line.style_solid
+        "Dashed" => line.style_dashed
+        "Dotted" => line.style_dotted
+        => line.style_solid
+
+// @function Converts string to extend constant
+// @param extStr Extension type as string
+// @returns extend constant
+f_getExtension(string extStr) =>
+    switch extStr
+        "None" => extend.none
+        "Right" => extend.right
+        "Left" => extend.left
+        "Both" => extend.both
+        => extend.right
+
+// @function Calculates the slope between two points
+// @param x1 First x coordinate
+// @param y1 First y coordinate
+// @param x2 Second x coordinate
+// @param y2 Second y coordinate
+// @returns Slope value
+f_calculateSlope(int x1, float y1, int x2, float y2) =>
+    (y2 - y1) / (x2 - x1)
+
+// @function Checks if a trendline is valid based on strength
+// @param touchPoints Number of pivot points the line touches
+// @returns true if valid
+f_isValidTrendline(int touchPoints) =>
+    touchPoints >= minTrendlineStrength
+
+// =============================================================================
+// MODULE 3: Pivot Detection
+// =============================================================================
+
+// @function Detects pivot highs
+// @param leftBars Left bars for pivot
+// @param rightBars Right bars for pivot
+// @returns Pivot high price or na
+f_detectPivotHigh(int leftBars, int rightBars) =>
+    ta.pivothigh(high, leftBars, rightBars)
+
+// @function Detects pivot lows
+// @param leftBars Left bars for pivot
+// @param rightBars Right bars for pivot
+// @returns Pivot low price or na
+f_detectPivotLow(int leftBars, int rightBars) =>
+    ta.pivotlow(low, leftBars, rightBars)
+
+// Detect current pivots
+currentPivotHigh = f_detectPivotHigh(pivotLeftBars, pivotRightBars)
+currentPivotLow = f_detectPivotLow(pivotLeftBars, pivotRightBars)
+
+// =============================================================================
+// MODULE 4: Data Storage (Pivot Points)
+// =============================================================================
+
+// Storage arrays for pivot highs
+var array<float> pivotHighPrices = array.new<float>()
+var array<int> pivotHighBars = array.new<int>()
+
+// Storage arrays for pivot lows
+var array<float> pivotLowPrices = array.new<float>()
+var array<int> pivotLowBars = array.new<int>()
+
+// Update pivot high storage
+if not na(currentPivotHigh)
+    array.unshift(pivotHighPrices, currentPivotHigh)
+    array.unshift(pivotHighBars, bar_index - pivotRightBars)
+    
+    // Limit array size
+    if array.size(pivotHighPrices) > maxStoredPivots
+        array.pop(pivotHighPrices)
+        array.pop(pivotHighBars)
+
+// Update pivot low storage
+if not na(currentPivotLow)
+    array.unshift(pivotLowPrices, currentPivotLow)
+    array.unshift(pivotLowBars, bar_index - pivotRightBars)
+    
+    // Limit array size
+    if array.size(pivotLowPrices) > maxStoredPivots
+        array.pop(pivotLowPrices)
+        array.pop(pivotLowBars)
+
+// =============================================================================
+// MODULE 5: Trendline Type Definition
+// =============================================================================
+
+// @type Represents a single trendline with all its properties
+type Trendline
+    line lineObj
+    int x1
+    float y1
+    int x2
+    float y2
+    float slope
+    int touchPoints
+    bool isDynamic
+    float strength
+
+// =============================================================================
+// MODULE 6: Trendline Manager
+// =============================================================================
+
+// @type Manages collections of trendlines
+type TrendlineManager
+    array<line> lines
+    int maxLines
+
+// @function Creates a new TrendlineManager instance
+// @param maxLines Maximum number of lines to manage
+// @returns New TrendlineManager instance
+f_createTrendlineManager(int maxLines) =>
+    manager = TrendlineManager.new(
+         array.new<line>(),
+         maxLines
+     )
+    manager
+
+// @function Adds a line to the manager
+// @param this TrendlineManager instance
+// @param lineObj Line to add
+method addLine(TrendlineManager this, line lineObj) =>
+    array.push(this.lines, lineObj)
+    
+    // Remove oldest line if exceeding max
+    if array.size(this.lines) > this.maxLines
+        oldLine = array.shift(this.lines)
+        line.delete(oldLine)
+
+// @function Clears all lines from the manager
+// @param this TrendlineManager instance
+method clearAll(TrendlineManager this) =>
+    for i = 0 to array.size(this.lines) - 1
+        line.delete(array.get(this.lines, i))
+    array.clear(this.lines)
+
+// =============================================================================
+// MODULE 7: Trendline Drawing Functions
+// =============================================================================
+
+// @function Draws a trendline on the chart
+// @param x1 Start bar index
+// @param y1 Start price
+// @param x2 End bar index
+// @param y2 End price
+// @param lineColor Color of the line
+// @param isDynamic Whether the line is dynamic
+// @param isResistance Whether this is a resistance line
+// @returns Created line object
+f_drawTrendline(int x1, float y1, int x2, float y2, color lineColor, bool isDynamic, bool isResistance) =>
+    lineStyle = isDynamic ? f_getLineStyle(dynamicLineStyle) : line.style_solid
+    lineWidth = isDynamic ? dynamicLineWidth : staticLineWidth
+    extend = f_getExtension(trendlineExtension)
+    
+    line.new(
+         x1, y1, x2, y2,
+         xloc=xloc.bar_index,
+         extend=extend,
+         color=lineColor,
+         style=lineStyle,
+         width=lineWidth
+     )
+
+// @function Calculates the quality/strength of a trendline
+// @param x1 Start bar
+// @param y1 Start price
+// @param x2 End bar
+// @param y2 End price
+// @param pivotBars Array of pivot bar indices
+// @param pivotPrices Array of pivot prices
+// @param tolerance Price tolerance for considering a point on the line
+// @returns Strength score
+f_calculateTrendlineStrength(int x1, float y1, int x2, float y2, 
+     array<int> pivotBars, array<float> pivotPrices, float tolerance) =>
+    int touchCount = 0
+    slope = f_calculateSlope(x1, y1, x2, y2)
+    
+    // Check how many pivots touch this line
+    for i = 0 to array.size(pivotBars) - 1
+        barIdx = array.get(pivotBars, i)
+        price = array.get(pivotPrices, i)
+        
+        // Calculate expected price on line at this bar
+        expectedPrice = y1 + slope * (barIdx - x1)
+        
+        // Check if pivot is close to the line
+        if math.abs(price - expectedPrice) <= tolerance
+            touchCount += 1
+    
+    touchCount
+
+// =============================================================================
+// MODULE 8: Main Trendline Detection Algorithm
+// =============================================================================
+
+// @function Finds the best trendlines from pivot points
+// @param pivotBars Array of pivot bar indices
+// @param pivotPrices Array of pivot prices
+// @param isResistance Whether finding resistance (true) or support (false)
+// @param manager TrendlineManager to add lines to
+// @param lineColor Color for the lines
+f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices, 
+     bool isResistance, TrendlineManager manager, color lineColor) =>
+    
+    int pivotCount = array.size(pivotBars)
+    
+    if pivotCount >= 2
+        // Calculate tolerance based on ATR
+        tolerance = ta.atr(14) * 0.5
+        
+        array<float> lineStrengths = array.new<float>()
+        array<int> lineI = array.new<int>()
+        array<int> lineJ = array.new<int>()
+        
+        // Find all possible trendlines and calculate their strength
+        for i = 0 to pivotCount - 2
+            for j = i + 1 to pivotCount - 1
+                x1 = array.get(pivotBars, j)
+                y1 = array.get(pivotPrices, j)
+                x2 = array.get(pivotBars, i)
+                y2 = array.get(pivotPrices, i)
+                
+                // Calculate strength
+                strength = f_calculateTrendlineStrength(x1, y1, x2, y2, 
+                     pivotBars, pivotPrices, tolerance)
+                
+                if strength >= minTrendlineStrength
+                    array.push(lineStrengths, strength)
+                    array.push(lineI, i)
+                    array.push(lineJ, j)
+        
+        // Sort by strength and draw the best lines
+        int strengthCount = array.size(lineStrengths)
+        
+        if strengthCount > 0
+            // Simple bubble sort to get top lines
+            for i = 0 to math.min(strengthCount - 1, maxLinesPerType - 1)
+                maxIdx = i
+                for j = i + 1 to strengthCount - 1
+                    if array.get(lineStrengths, j) > array.get(lineStrengths, maxIdx)
+                        maxIdx := j
+                
+                // Swap
+                if maxIdx != i
+                    tempStrength = array.get(lineStrengths, i)
+                    array.set(lineStrengths, i, array.get(lineStrengths, maxIdx))
+                    array.set(lineStrengths, maxIdx, tempStrength)
+                    
+                    tempI = array.get(lineI, i)
+                    array.set(lineI, i, array.get(lineI, maxIdx))
+                    array.set(lineI, maxIdx, tempI)
+                    
+                    tempJ = array.get(lineJ, i)
+                    array.set(lineJ, i, array.get(lineJ, maxIdx))
+                    array.set(lineJ, maxIdx, tempJ)
+                
+                // Draw the line
+                idx_i = array.get(lineI, i)
+                idx_j = array.get(lineJ, i)
+                
+                x1 = array.get(pivotBars, idx_j)
+                y1 = array.get(pivotPrices, idx_j)
+                x2 = array.get(pivotBars, idx_i)
+                y2 = array.get(pivotPrices, idx_i)
+                
+                // Determine if dynamic or static based on slope
+                slope = math.abs(f_calculateSlope(x1, y1, x2, y2))
+                isDynamic = slope > 0.0001  // Dynamic if has significant slope
+                
+                // Apply display filters
+                shouldDraw = true
+                if isDynamic and not showDynamic
+                    shouldDraw := false
+                if not isDynamic and not showStatic
+                    shouldDraw := false
+                
+                if shouldDraw
+                    newLine = f_drawTrendline(x1, y1, x2, y2, lineColor, isDynamic, isResistance)
+                    manager.addLine(newLine)
+
+// =============================================================================
+// MODULE 9: Initialization & Main Execution
+// =============================================================================
+
+// Initialize managers
+var TrendlineManager resistanceManager = f_createTrendlineManager(maxLinesPerType)
+var TrendlineManager supportManager = f_createTrendlineManager(maxLinesPerType)
+
+// Main execution on last bar
+if barstate.islast
+    // Clear previous lines
+    resistanceManager.clearAll()
+    supportManager.clearAll()
+    
+    // Draw resistance lines
+    if showResistance
+        f_findBestTrendlines(pivotHighBars, pivotHighPrices, true, 
+             resistanceManager, resistanceColor)
+    
+    // Draw support lines
+    if showSupport
+        f_findBestTrendlines(pivotLowBars, pivotLowPrices, false, 
+             supportManager, supportColor)
+
+// =============================================================================
+// MODULE 10: Visual Enhancements
+// =============================================================================
+
+// Plot pivot points for visualization
+plotshape(currentPivotHigh, "Pivot High", shape.triangledown, location.abovebar, 
+     color.new(resistanceColor, 50), size=size.tiny)
+plotshape(currentPivotLow, "Pivot Low", shape.triangleup, location.belowbar, 
+     color.new(supportColor, 50), size=size.tiny)
+
+// Display information table
+var table infoTable = table.new(position.top_right, 2, 4, 
+     bgcolor=color.new(color.gray, 90), border_width=1)
+
+if barstate.islast
+    table.cell(infoTable, 0, 0, "Resistance Lines:", text_color=resistanceColor, text_size=size.small)
+    table.cell(infoTable, 1, 0, str.tostring(array.size(resistanceManager.lines)), text_color=color.white, text_size=size.small)
+    
+    table.cell(infoTable, 0, 1, "Support Lines:", text_color=supportColor, text_size=size.small)
+    table.cell(infoTable, 1, 1, str.tostring(array.size(supportManager.lines)), text_color=color.white, text_size=size.small)
+    
+    table.cell(infoTable, 0, 2, "Pivot Highs:", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 2, str.tostring(array.size(pivotHighBars)), text_color=color.white, text_size=size.small)
+    
+    table.cell(infoTable, 0, 3, "Pivot Lows:", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 3, str.tostring(array.size(pivotLowBars)), text_color=color.white, text_size=size.small)
+
+// =============================================================================
+// MODULE 11: Alerts (Optional Extension Point)
+// =============================================================================
+
+// Example: Alert when price crosses a trendline
+// This module can be extended for various alert conditions
+
+// Alert conditions can be added here
+// Example: alertcondition(condition, title, message)
+
+// =============================================================================
+// End of Modular Trendline Indicator
+// =============================================================================
