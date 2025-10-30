@@ -229,7 +229,8 @@ f_createTrendlineManager(int maxLines) =>
 // @function Adds a trendline to the manager
 // @param this TrendlineManager instance
 // @param trendline Trendline to add
-method addTrendline(TrendlineManager this, Trendline trendline) =>
+// @param atrValue ATR value for parallel filtering
+method addTrendline(TrendlineManager this, Trendline trendline, float atrValue) =>
     // Check for parallel lines if filter is enabled
     if enableParallelFilter and array.size(this.trendlines) > 0
         isParallel = false
@@ -238,7 +239,7 @@ method addTrendline(TrendlineManager this, Trendline trendline) =>
             currentPrice = trendline.y1 + trendline.slope * (bar_index - trendline.x1)
             existingPrice = existing.y1 + existing.slope * (bar_index - existing.x1)
             
-            if f_areLinesParallel(trendline.slope, existing.slope, currentPrice, existingPrice, ta.atr(14))
+            if f_areLinesParallel(trendline.slope, existing.slope, currentPrice, existingPrice, atrValue)
                 isParallel := true
                 break
         
@@ -402,8 +403,9 @@ f_calculateTrendlineStrength(int x1, float y1, int x2, float y2,
 // @param tolerance Price tolerance for trendline detection
 // @param isHTF Whether this is higher timeframe data
 // @param lineWidth Width of the line
+// @param avgVol Average volume for quality scoring
 f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices, 
-     bool isResistance, TrendlineManager manager, color lineColor, float tolerance, bool isHTF, int lineWidth) =>
+     bool isResistance, TrendlineManager manager, color lineColor, float tolerance, bool isHTF, int lineWidth, float avgVol, float atrValue) =>
     
     int pivotCount = array.size(pivotBars)
     
@@ -413,9 +415,6 @@ f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices,
         array<float> lineQualityScores = array.new<float>()
         array<int> lineI = array.new<int>()
         array<int> lineJ = array.new<int>()
-        
-        // Calculate average volume for quality scoring
-        avgVolume = ta.sma(volume, 20)
         
         // Find all possible trendlines and calculate their strength
         for i = 0 to pivotCount - 2
@@ -432,12 +431,12 @@ f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices,
                 if strength >= minTrendlineStrength
                     // Calculate quality score
                     lineAge = bar_index - x1
-                    qualityScore = f_calculateTouchQuality(strength, lineAge, volume, avgVolume)
+                    qualityScore = f_calculateTouchQuality(strength, lineAge, volume, avgVol)
                     
                     // Volume confirmation filter
                     passVolumeFilter = true
                     if enableVolumeConfirmation
-                        passVolumeFilter := volume > avgVolume * volumeMultiplier or not enableVolumeConfirmation
+                        passVolumeFilter := volume > avgVol * volumeMultiplier or not enableVolumeConfirmation
                     
                     if passVolumeFilter or not enableVolumeConfirmation
                         array.push(lineStrengths, strength)
@@ -494,7 +493,7 @@ f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices,
                 trendline = f_drawTrendline(x1, y1, x2, y2, lineColor, isHTF, lineWidth, 
                      lineAge, touchPoints, qualityScore, touchBars, touchPrices)
                 
-                manager.addTrendline(trendline)
+                manager.addTrendline(trendline, atrValue)
 
 // =============================================================================
 // MODULE 9: Initialization & Main Execution
@@ -508,8 +507,9 @@ var TrendlineManager ctfSupportManager = f_createTrendlineManager(maxLinesPerTyp
 var TrendlineManager htfResistanceManager = f_createTrendlineManager(maxLinesPerType)
 var TrendlineManager htfSupportManager = f_createTrendlineManager(maxLinesPerType)
 
-// Calculate tolerance on every bar for consistency
+// Calculate tolerance and volume average on every bar for consistency
 float atrTolerance = ta.atr(14) * 0.5
+float avgVol = ta.sma(volume, 50)
 
 // Get higher timeframe data
 [htfHigh, htfLow] = request.security(syminfo.tickerid, htfTimeframe, [high, low], lookahead=barmerge.lookahead_off)
@@ -551,20 +551,20 @@ if barstate.islast
 // Draw current timeframe trendlines (white, solid)
 if barstate.islast and showCurrentTF and showResistance
     f_findBestTrendlines(pivotHighBars, pivotHighPrices, true, 
-         ctfResistanceManager, ctfColor, atrTolerance, false, ctfLineWidth)
+         ctfResistanceManager, ctfColor, atrTolerance, false, ctfLineWidth, avgVol, atrTolerance)
 
 if barstate.islast and showCurrentTF and showSupport
     f_findBestTrendlines(pivotLowBars, pivotLowPrices, false, 
-         ctfSupportManager, ctfColor, atrTolerance, false, ctfLineWidth)
+         ctfSupportManager, ctfColor, atrTolerance, false, ctfLineWidth, avgVol, atrTolerance)
 
 // Draw higher timeframe trendlines (colored, dashed)
 if barstate.islast and enableHTF and showHTF and showResistance
     f_findBestTrendlines(htfPivotHighBars, htfPivotHighPrices, true, 
-         htfResistanceManager, htfResistanceColor, atrTolerance * 2, true, htfLineWidth)
+         htfResistanceManager, htfResistanceColor, atrTolerance * 2, true, htfLineWidth, avgVol, atrTolerance * 2)
 
 if barstate.islast and enableHTF and showHTF and showSupport
     f_findBestTrendlines(htfPivotLowBars, htfPivotLowPrices, false, 
-         htfSupportManager, htfSupportColor, atrTolerance * 2, true, htfLineWidth)
+         htfSupportManager, htfSupportColor, atrTolerance * 2, true, htfLineWidth, avgVol, atrTolerance * 2)
 
 // =============================================================================
 // MODULE 10: Breakout & Retest Detection
@@ -687,8 +687,7 @@ if barstate.islast
     table.cell(infoTable, 1, 7, str.tostring(array.size(htfPivotHighBars) + array.size(htfPivotLowBars)), text_color=color.white, text_size=size.tiny)
     table.cell(infoTable, 2, 7, "", text_color=color.white, text_size=size.tiny)
     
-    // Volume indicator
-    avgVol = ta.sma(volume, 20)
+    // Volume indicator (using pre-calculated avgVol)
     volStatus = volume > avgVol * volumeMultiplier ? "🔊 HIGH" : "🔉 Norm"
     table.cell(infoTable, 0, 8, "Volume:", text_color=color.white, text_size=size.tiny)
     table.cell(infoTable, 1, 8, volStatus, text_color=volume > avgVol * volumeMultiplier ? color.lime : color.gray, text_size=size.tiny)
