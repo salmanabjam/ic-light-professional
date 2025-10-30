@@ -11,6 +11,13 @@ indicator("Advanced Trendline Indicator v6", overlay=true, max_lines_count=500)
 // MODULE 1: Configuration & Settings
 // =============================================================================
 
+// Group: Multi-Timeframe Settings
+enableHTF = input.bool(true, "Enable Higher Timeframe", group="Multi-Timeframe")
+htfTimeframe = input.timeframe("240", "Higher Timeframe", group="Multi-Timeframe", 
+     tooltip="Higher timeframe for trend analysis (e.g., 4H, D, W)")
+showCurrentTF = input.bool(true, "Show Current Timeframe Lines", group="Multi-Timeframe")
+showHTF = input.bool(true, "Show Higher Timeframe Lines", group="Multi-Timeframe")
+
 // Group: Pivot Detection Settings
 pivotLeftBars = input.int(10, "Pivot Left Bars", minval=1, group="Pivot Detection")
 pivotRightBars = input.int(10, "Pivot Right Bars", minval=1, group="Pivot Detection")
@@ -19,21 +26,22 @@ maxStoredPivots = input.int(20, "Max Stored Pivots", minval=2, maxval=50, group=
 // Group: Trendline Settings
 showResistance = input.bool(true, "Show Resistance Lines", group="Trendline Display")
 showSupport = input.bool(true, "Show Support Lines", group="Trendline Display")
-showDynamic = input.bool(true, "Show Dynamic Lines", group="Trendline Display")
-showStatic = input.bool(true, "Show Static Lines", group="Trendline Display")
 
-// Group: Visual Settings
-resistanceColor = input.color(color.new(color.red, 0), "Resistance Color", group="Visual Settings")
-supportColor = input.color(color.new(color.green, 0), "Support Color", group="Visual Settings")
-dynamicLineStyle = input.string("Dashed", "Dynamic Line Style", options=["Solid", "Dashed", "Dotted"], group="Visual Settings")
-staticLineWidth = input.int(2, "Static Line Width", minval=1, maxval=5, group="Visual Settings")
-dynamicLineWidth = input.int(1, "Dynamic Line Width", minval=1, maxval=5, group="Visual Settings")
+// Group: Visual Settings - Current Timeframe
+ctfColor = input.color(color.new(color.white, 0), "Current TF Color", group="Current Timeframe Style")
+ctfLineWidth = input.int(2, "Current TF Width", minval=1, maxval=5, group="Current Timeframe Style")
+
+// Group: Visual Settings - Higher Timeframe
+htfResistanceColor = input.color(color.new(color.red, 20), "HTF Resistance Color", group="Higher Timeframe Style")
+htfSupportColor = input.color(color.new(color.green, 20), "HTF Support Color", group="Higher Timeframe Style")
+htfLineWidth = input.int(2, "HTF Line Width", minval=1, maxval=3, group="Higher Timeframe Style")
 
 // Group: Advanced Settings
 minTrendlineStrength = input.int(3, "Min Trendline Strength", minval=2, maxval=10, group="Advanced Settings", 
      tooltip="Minimum number of pivot points to form a valid trendline")
 trendlineExtension = input.string("Right", "Extend Lines", options=["None", "Right", "Left", "Both"], group="Advanced Settings")
-maxLinesPerType = input.int(10, "Max Lines Per Type", minval=1, maxval=50, group="Advanced Settings")
+maxLinesPerType = input.int(3, "Max Lines Per Type", minval=1, maxval=10, group="Advanced Settings",
+     tooltip="Reduced from 10 to show only most important trendlines")
 
 // =============================================================================
 // MODULE 2: Utility Functions
@@ -193,12 +201,11 @@ method clearAll(TrendlineManager this) =>
 // @param x2 End bar index
 // @param y2 End price
 // @param lineColor Color of the line
-// @param isDynamic Whether the line is dynamic
-// @param isResistance Whether this is a resistance line
+// @param isHTF Whether this is a higher timeframe line
+// @param lineWidth Width of the line
 // @returns Created line object
-f_drawTrendline(int x1, float y1, int x2, float y2, color lineColor, bool isDynamic, bool isResistance) =>
-    lineStyle = isDynamic ? f_getLineStyle(dynamicLineStyle) : line.style_solid
-    lineWidth = isDynamic ? dynamicLineWidth : staticLineWidth
+f_drawTrendline(int x1, float y1, int x2, float y2, color lineColor, bool isHTF, int lineWidth) =>
+    lineStyle = isHTF ? line.style_dashed : line.style_solid
     extend = f_getExtension(trendlineExtension)
     
     line.new(
@@ -249,8 +256,10 @@ f_calculateTrendlineStrength(int x1, float y1, int x2, float y2,
 // @param manager TrendlineManager to add lines to
 // @param lineColor Color for the lines
 // @param tolerance Price tolerance for trendline detection
+// @param isHTF Whether this is higher timeframe data
+// @param lineWidth Width of the line
 f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices, 
-     bool isResistance, TrendlineManager manager, color lineColor, float tolerance) =>
+     bool isResistance, TrendlineManager manager, color lineColor, float tolerance, bool isHTF, int lineWidth) =>
     
     int pivotCount = array.size(pivotBars)
     
@@ -311,72 +320,120 @@ f_findBestTrendlines(array<int> pivotBars, array<float> pivotPrices,
                 x2 = array.get(pivotBars, idx_i)
                 y2 = array.get(pivotPrices, idx_i)
                 
-                // Determine if dynamic or static based on slope
-                slope = math.abs(f_calculateSlope(x1, y1, x2, y2))
-                isDynamic = slope > 0.0001  // Dynamic if has significant slope
-                
-                // Apply display filters
-                shouldDraw = true
-                if isDynamic and not showDynamic
-                    shouldDraw := false
-                if not isDynamic and not showStatic
-                    shouldDraw := false
-                
-                if shouldDraw
-                    newLine = f_drawTrendline(x1, y1, x2, y2, lineColor, isDynamic, isResistance)
-                    manager.addLine(newLine)
+                newLine = f_drawTrendline(x1, y1, x2, y2, lineColor, isHTF, lineWidth)
+                manager.addLine(newLine)
 
 // =============================================================================
 // MODULE 9: Initialization & Main Execution
 // =============================================================================
 
-// Initialize managers
-var TrendlineManager resistanceManager = f_createTrendlineManager(maxLinesPerType)
-var TrendlineManager supportManager = f_createTrendlineManager(maxLinesPerType)
+// Initialize managers for current timeframe
+var TrendlineManager ctfResistanceManager = f_createTrendlineManager(maxLinesPerType)
+var TrendlineManager ctfSupportManager = f_createTrendlineManager(maxLinesPerType)
+
+// Initialize managers for higher timeframe
+var TrendlineManager htfResistanceManager = f_createTrendlineManager(maxLinesPerType)
+var TrendlineManager htfSupportManager = f_createTrendlineManager(maxLinesPerType)
 
 // Calculate tolerance on every bar for consistency
 float atrTolerance = ta.atr(14) * 0.5
 
-// Draw trendlines (called on every bar for consistency)
+// Get higher timeframe data
+[htfHigh, htfLow] = request.security(syminfo.tickerid, htfTimeframe, [high, low], lookahead=barmerge.lookahead_off)
+
+// Detect HTF pivots
+htfPivotHigh = request.security(syminfo.tickerid, htfTimeframe, 
+     f_detectPivotHigh(pivotLeftBars, pivotRightBars), lookahead=barmerge.lookahead_off)
+htfPivotLow = request.security(syminfo.tickerid, htfTimeframe, 
+     f_detectPivotLow(pivotLeftBars, pivotRightBars), lookahead=barmerge.lookahead_off)
+
+// Storage for HTF pivots
+var array<float> htfPivotHighPrices = array.new<float>()
+var array<int> htfPivotHighBars = array.new<int>()
+var array<float> htfPivotLowPrices = array.new<float>()
+var array<int> htfPivotLowBars = array.new<int>()
+
+// Update HTF pivot storage
+if enableHTF and not na(htfPivotHigh)
+    array.unshift(htfPivotHighPrices, htfPivotHigh)
+    array.unshift(htfPivotHighBars, bar_index - pivotRightBars)
+    if array.size(htfPivotHighPrices) > maxStoredPivots
+        array.pop(htfPivotHighPrices)
+        array.pop(htfPivotHighBars)
+
+if enableHTF and not na(htfPivotLow)
+    array.unshift(htfPivotLowPrices, htfPivotLow)
+    array.unshift(htfPivotLowBars, bar_index - pivotRightBars)
+    if array.size(htfPivotLowPrices) > maxStoredPivots
+        array.pop(htfPivotLowPrices)
+        array.pop(htfPivotLowBars)
+
+// Clear all lines on last bar
 if barstate.islast
-    resistanceManager.clearAll()
-    supportManager.clearAll()
+    ctfResistanceManager.clearAll()
+    ctfSupportManager.clearAll()
+    htfResistanceManager.clearAll()
+    htfSupportManager.clearAll()
 
-// Process resistance and support on every bar to maintain consistency
-if barstate.islast and showResistance
+// Draw current timeframe trendlines (white, solid)
+if barstate.islast and showCurrentTF and showResistance
     f_findBestTrendlines(pivotHighBars, pivotHighPrices, true, 
-         resistanceManager, resistanceColor, atrTolerance)
+         ctfResistanceManager, ctfColor, atrTolerance, false, ctfLineWidth)
 
-if barstate.islast and showSupport
+if barstate.islast and showCurrentTF and showSupport
     f_findBestTrendlines(pivotLowBars, pivotLowPrices, false, 
-         supportManager, supportColor, atrTolerance)
+         ctfSupportManager, ctfColor, atrTolerance, false, ctfLineWidth)
+
+// Draw higher timeframe trendlines (colored, dashed)
+if barstate.islast and enableHTF and showHTF and showResistance
+    f_findBestTrendlines(htfPivotHighBars, htfPivotHighPrices, true, 
+         htfResistanceManager, htfResistanceColor, atrTolerance * 2, true, htfLineWidth)
+
+if barstate.islast and enableHTF and showHTF and showSupport
+    f_findBestTrendlines(htfPivotLowBars, htfPivotLowPrices, false, 
+         htfSupportManager, htfSupportColor, atrTolerance * 2, true, htfLineWidth)
 
 // =============================================================================
 // MODULE 10: Visual Enhancements
 // =============================================================================
 
 // Plot pivot points for visualization
-plotshape(currentPivotHigh, "Pivot High", shape.triangledown, location.abovebar, 
-     color.new(resistanceColor, 50), size=size.tiny)
-plotshape(currentPivotLow, "Pivot Low", shape.triangleup, location.belowbar, 
-     color.new(supportColor, 50), size=size.tiny)
+plotshape(currentPivotHigh, "CTF Pivot High", shape.triangledown, location.abovebar, 
+     color.new(ctfColor, 50), size=size.tiny)
+plotshape(currentPivotLow, "CTF Pivot Low", shape.triangleup, location.belowbar, 
+     color.new(ctfColor, 50), size=size.tiny)
+
+// Plot HTF pivots if enabled
+plotshape(enableHTF ? htfPivotHigh : na, "HTF Pivot High", shape.xcross, location.abovebar, 
+     color.new(htfResistanceColor, 30), size=size.small)
+plotshape(enableHTF ? htfPivotLow : na, "HTF Pivot Low", shape.xcross, location.belowbar, 
+     color.new(htfSupportColor, 30), size=size.small)
 
 // Display information table
-var table infoTable = table.new(position.top_right, 2, 4, 
+var table infoTable = table.new(position.top_right, 2, 6, 
      bgcolor=color.new(color.gray, 90), border_width=1)
 
 if barstate.islast
-    table.cell(infoTable, 0, 0, "Resistance Lines:", text_color=resistanceColor, text_size=size.small)
-    table.cell(infoTable, 1, 0, str.tostring(array.size(resistanceManager.lines)), text_color=color.white, text_size=size.small)
+    // Current Timeframe Info
+    table.cell(infoTable, 0, 0, "CTF Resistance:", text_color=ctfColor, text_size=size.small)
+    table.cell(infoTable, 1, 0, str.tostring(array.size(ctfResistanceManager.lines)), text_color=color.white, text_size=size.small)
     
-    table.cell(infoTable, 0, 1, "Support Lines:", text_color=supportColor, text_size=size.small)
-    table.cell(infoTable, 1, 1, str.tostring(array.size(supportManager.lines)), text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 0, 1, "CTF Support:", text_color=ctfColor, text_size=size.small)
+    table.cell(infoTable, 1, 1, str.tostring(array.size(ctfSupportManager.lines)), text_color=color.white, text_size=size.small)
     
-    table.cell(infoTable, 0, 2, "Pivot Highs:", text_color=color.white, text_size=size.small)
-    table.cell(infoTable, 1, 2, str.tostring(array.size(pivotHighBars)), text_color=color.white, text_size=size.small)
+    // Higher Timeframe Info
+    table.cell(infoTable, 0, 2, "HTF Resistance:", text_color=htfResistanceColor, text_size=size.small)
+    table.cell(infoTable, 1, 2, str.tostring(array.size(htfResistanceManager.lines)), text_color=color.white, text_size=size.small)
     
-    table.cell(infoTable, 0, 3, "Pivot Lows:", text_color=color.white, text_size=size.small)
-    table.cell(infoTable, 1, 3, str.tostring(array.size(pivotLowBars)), text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 0, 3, "HTF Support:", text_color=htfSupportColor, text_size=size.small)
+    table.cell(infoTable, 1, 3, str.tostring(array.size(htfSupportManager.lines)), text_color=color.white, text_size=size.small)
+    
+    // Pivot Counts
+    table.cell(infoTable, 0, 4, "CTF Pivots:", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 4, str.tostring(array.size(pivotHighBars) + array.size(pivotLowBars)), text_color=color.white, text_size=size.small)
+    
+    table.cell(infoTable, 0, 5, "HTF Pivots:", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 5, str.tostring(array.size(htfPivotHighBars) + array.size(htfPivotLowBars)), text_color=color.white, text_size=size.small)
 
 // =============================================================================
 // MODULE 11: Alerts (Optional Extension Point)
