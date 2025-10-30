@@ -2,16 +2,55 @@
 
 Complete implementation and documentation for IC Light (Imposing Consistent Light) - an advanced AI-powered image relighting application.
 
+## 🤖 NEW: AI Dev Collective v9.0 - Multi-Agent Analysis System
+
+This repository now includes a comprehensive **multi-agent software analysis system** with 8 specialized AI agents for deep analysis and enhancement of the IC Light project:
+
+- **Astro** - Lead Developer (architecture, code quality)
+- **Lyra** - Research Assistant (dependencies, technologies)
+- **Nexus** - Code Quality Assistant (standards, best practices)
+- **CryptoX** - Security Analyst (vulnerabilities, security)
+- **NOVA** - UI/UX Designer (interface, user experience)
+- **Echo** - Performance Analyst (optimization, bottlenecks)
+- **Sage** - Documentation Specialist (bilingual docs)
+- **Pulse** - DevOps Specialist (CI/CD, deployment)
+
+### Quick Start with AI Analysis
+```bash
+# Analyze the entire project
+python analyze_software.py --verbose
+
+# Run specific agents
+python analyze_software.py --agents Astro CryptoX Echo
+
+# Generate detailed report
+python analyze_software.py --output report.md --format markdown
+```
+
+📖 **Full Documentation:** [MULTI_AGENT_SYSTEM.md](MULTI_AGENT_SYSTEM.md) | [BILINGUAL_GUIDE.md](BILINGUAL_GUIDE.md)
+
+---
+
 ## 📁 Files Overview
 
 ### 📋 Documentation Files
 - **`IC_Light_Complete_Analysis_FA.md`** - Comprehensive Persian analysis and documentation
 - **`IC_Light_Technical_Implementation_Guide.md`** - Technical implementation details
 - **`README.md`** - This overview file
+- **`MULTI_AGENT_SYSTEM.md`** - Multi-agent analysis system documentation
+- **`BILINGUAL_GUIDE.md`** - Bilingual (English-Persian) usage guide
 
 ### 💻 Implementation Files  
 - **`IC_Light_Complete_Google_Colab.ipynb`** - Complete Jupyter notebook for Google Colab
 - **`ic_light_setup.py`** - Python setup script for quick installation
+
+### 🤖 AI Analysis System Files
+- **`agents/`** - Multi-agent system implementation
+  - `base.py` - Agent base classes and team management
+  - `roles.py` - 8 specialized agent implementations
+- **`analyze_software.py`** - CLI tool for running software analysis
+- **`example_usage.py`** - Example integration with IC Light
+- **`team_config.json`** - Team configuration and specifications
 
 ## 🎯 What is IC Light?
 
