@@ -336,21 +336,19 @@ var TrendlineManager supportManager = f_createTrendlineManager(maxLinesPerType)
 // Calculate tolerance on every bar for consistency
 float atrTolerance = ta.atr(14) * 0.5
 
-// Main execution on last bar
+// Draw trendlines (called on every bar for consistency)
 if barstate.islast
-    // Clear previous lines
     resistanceManager.clearAll()
     supportManager.clearAll()
-    
-    // Draw resistance lines
-    if showResistance
-        f_findBestTrendlines(pivotHighBars, pivotHighPrices, true, 
-             resistanceManager, resistanceColor, atrTolerance)
-    
-    // Draw support lines
-    if showSupport
-        f_findBestTrendlines(pivotLowBars, pivotLowPrices, false, 
-             supportManager, supportColor, atrTolerance)
+
+// Process resistance and support on every bar to maintain consistency
+if barstate.islast and showResistance
+    f_findBestTrendlines(pivotHighBars, pivotHighPrices, true, 
+         resistanceManager, resistanceColor, atrTolerance)
+
+if barstate.islast and showSupport
+    f_findBestTrendlines(pivotLowBars, pivotLowPrices, false, 
+         supportManager, supportColor, atrTolerance)
 
 // =============================================================================
 // MODULE 10: Visual Enhancements
