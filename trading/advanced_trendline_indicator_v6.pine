@@ -121,13 +121,13 @@ f_areLinesParallel(float slope1, float slope2, float price1, float price2, float
 // @function Calculates touch quality score (0-100)
 // @param touchCount Number of touches
 // @param lineAge Age of the line in bars
-// @param volume Current volume
+// @param vol Current volume
 // @param avgVolume Average volume
 // @returns Quality score
-f_calculateTouchQuality(int touchCount, int lineAge, float volume, float avgVolume) =>
+f_calculateTouchQuality(int touchCount, int lineAge, float vol, float avgVolume) =>
     baseScore = math.min(touchCount * 20, 60)  // Max 60 from touches
     ageBonus = math.min(lineAge / 100, 20)     // Max 20 from age
-    volumeBonus = volume > avgVolume ? 20 : 0   // 20 if high volume
+    volumeBonus = vol > avgVolume ? 20 : 0      // 20 if high volume
     math.min(baseScore + ageBonus + volumeBonus, 100)
 
 // =============================================================================
@@ -306,7 +306,7 @@ f_drawTrendline(int x1, float y1, int x2, float y2, color lineColor, bool isHTF,
     
     // Create price label if enabled
     currentPrice = y2 + (y2 - y1) / (x2 - x1) * (bar_index - x2)
-    priceLabel = na(label)
+    priceLabel = label(na)
     
     if showPriceLabels
         labelText = str.tostring(currentPrice, format.mintick)
